@@ -1,0 +1,7 @@
+{
+  "session_id": "test",
+  "hook_event_name": "PreToolUse",
+  "cwd": "/tmp",
+  "tool_name": "Bash",
+  "tool_input": { "command": "rm -rf ./build" }
+}

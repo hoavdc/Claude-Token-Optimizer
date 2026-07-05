@@ -1,0 +1,22 @@
+# Claude Code local state (never ship)
+.claude/settings.local.json
+.claude/token-optimizer-state.json
+*.token-optimizer-state.json
+.plugin-config/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Node (CI installs the CLI globally; nothing should be committed)
+node_modules/
+
+# Test/temp artifacts
+*.tmp
+*.log

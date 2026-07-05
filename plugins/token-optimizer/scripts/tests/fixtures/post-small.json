@@ -1,0 +1,8 @@
+{
+  "session_id": "test",
+  "hook_event_name": "PostToolUse",
+  "cwd": "/tmp",
+  "tool_name": "Bash",
+  "tool_input": { "command": "echo hi" },
+  "tool_response": { "stdout": "hi\nthere\n", "stderr": "", "interrupted": false, "isImage": false }
+}

@@ -1,0 +1,6 @@
+{
+  "session_id": "test",
+  "hook_event_name": "Stop",
+  "cwd": "/tmp",
+  "stop_hook_active": false
+}

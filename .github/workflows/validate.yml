@@ -1,0 +1,42 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate marketplace
+        run: claude plugin validate .
+
+      - name: Validate plugin
+        run: claude plugin validate ./plugins/token-optimizer
+
+      - name: Check version sync (plugin.json vs marketplace.json)
+        run: |
+          P=$(jq -r .version plugins/token-optimizer/.claude-plugin/plugin.json)
+          M=$(jq -r '.plugins[] | select(.name=="token-optimizer") | .version' .claude-plugin/marketplace.json)
+          echo "plugin.json=$P marketplace.json=$M"
+          [ "$P" = "$M" ] || { echo "::error::version drift between plugin.json and marketplace.json"; exit 1; }
+
+      - name: Run offline hook-script tests
+        run: bash plugins/token-optimizer/scripts/tests/run-tests.sh
+
+      - name: Shellcheck (errors fail the build, warnings do not)
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+          shellcheck --severity=error plugins/token-optimizer/scripts/*.sh plugins/token-optimizer/scripts/tests/*.sh
+          # warnings shown for information only:
+          shellcheck plugins/token-optimizer/scripts/*.sh plugins/token-optimizer/scripts/tests/*.sh || true

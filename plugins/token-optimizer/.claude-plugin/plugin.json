@@ -1,0 +1,39 @@
+{
+  "name": "token-optimizer",
+  "displayName": "Token Optimizer",
+  "version": "0.1.0",
+  "description": "Cuts token consumption in coding sessions by rewriting verbose commands, compressing tool output, reminding about /compact, and routing simple tasks to cheap Haiku subagents.",
+  "author": {
+    "name": "Danny Hoa",
+    "email": "dannyhoa1283@gmail.com",
+    "url": "https://github.com/hoavdc"
+  },
+  "homepage": "https://github.com/hoavdc/Claude-Token-Optimizer",
+  "repository": "https://github.com/hoavdc/Claude-Token-Optimizer",
+  "license": "MIT",
+  "keywords": ["tokens", "cost", "optimization", "hooks", "context", "compaction"],
+  "userConfig": {
+    "maxToolOutputLines": {
+      "type": "number",
+      "title": "Max tool output lines",
+      "description": "Bash output longer than this many lines gets compressed before it enters context",
+      "default": 150,
+      "min": 20,
+      "max": 5000
+    },
+    "compactReminderTurns": {
+      "type": "number",
+      "title": "Compact reminder interval",
+      "description": "Remind to run /compact every N conversation turns",
+      "default": 12,
+      "min": 2,
+      "max": 200
+    },
+    "aggressiveMode": {
+      "type": "boolean",
+      "title": "Aggressive mode",
+      "description": "Start sessions with the strict filtering budget (equivalent to /token-optimizer:budget strict)",
+      "default": false
+    }
+  }
+}

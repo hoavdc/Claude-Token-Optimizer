@@ -1,7 +1,7 @@
 {
   "name": "token-optimizer",
   "displayName": "Token Optimizer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cuts token consumption in coding sessions by rewriting verbose commands, compressing tool output, reminding about /compact, and routing simple tasks to cheap Haiku subagents.",
   "author": {
     "name": "Danny Hoa",
@@ -11,7 +11,14 @@
   "homepage": "https://github.com/hoavdc/Claude-Token-Optimizer",
   "repository": "https://github.com/hoavdc/Claude-Token-Optimizer",
   "license": "MIT",
-  "keywords": ["tokens", "cost", "optimization", "hooks", "context", "compaction"],
+  "keywords": [
+    "tokens",
+    "cost",
+    "optimization",
+    "hooks",
+    "context",
+    "compaction"
+  ],
   "userConfig": {
     "maxToolOutputLines": {
       "type": "number",

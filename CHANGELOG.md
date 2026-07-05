@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/hoavdc/Claude-Token-Optimizer/compare/v0.1.0...v0.2.0) (2026-07-05)
+
+
+### Features
+
+* initial release of token-optimizer plugin and marketplace ([56d70f0](https://github.com/hoavdc/Claude-Token-Optimizer/commit/56d70f0c41e41e8bb9aab512df6dd19b31f02971))
+
+
+### Bug Fixes
+
+* harden rewrite rules and truncation strategy after review ([f5d44a0](https://github.com/hoavdc/Claude-Token-Optimizer/commit/f5d44a04c089b0fd26cf3163f81dd205c06c1452))
+
 ## [0.1.0] - 2026-07-05
 
 ### Added

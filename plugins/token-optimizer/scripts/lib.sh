@@ -8,14 +8,16 @@
 TO_HAS_JQ=0
 TO_HAS_PY=0
 command -v jq >/dev/null 2>&1 && TO_HAS_JQ=1
-command -v python3 >/dev/null 2>&1 && TO_HAS_PY=1
+# Windows/Git Bash often has "python" but not "python3"
+TO_PY_BIN="$(command -v python3 2>/dev/null || command -v python 2>/dev/null)"
+[ -n "$TO_PY_BIN" ] && TO_HAS_PY=1
 
 # json_get <dotted.path>  - extract a string/number field from $INPUT
 json_get() {
   if [ "$TO_HAS_JQ" = 1 ]; then
     printf '%s' "$INPUT" | jq -r "(.$1 // empty) | if type==\"string\" then . else tostring end" 2>/dev/null
   elif [ "$TO_HAS_PY" = 1 ]; then
-    printf '%s' "$INPUT" | python3 -c '
+    printf '%s' "$INPUT" | "$TO_PY_BIN" -c '
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -71,7 +73,7 @@ state_update() {
     done
     state_read | jq -c "$prog" > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" 2>/dev/null
   elif [ "$TO_HAS_PY" = 1 ]; then
-    STATE_JSON="$(state_read)" python3 -c '
+    STATE_JSON="$(state_read)" "$TO_PY_BIN" -c '
 import sys, json, os
 try:
     d = json.loads(os.environ.get("STATE_JSON") or "{}")
@@ -103,7 +105,7 @@ state_get() {
   if [ "$TO_HAS_JQ" = 1 ]; then
     v="$(state_read | jq -r ".$1 // empty" 2>/dev/null)"
   elif [ "$TO_HAS_PY" = 1 ]; then
-    v="$(state_read | python3 -c '
+    v="$(state_read | "$TO_PY_BIN" -c '
 import sys, json
 try:
     v = json.load(sys.stdin).get(sys.argv[1])

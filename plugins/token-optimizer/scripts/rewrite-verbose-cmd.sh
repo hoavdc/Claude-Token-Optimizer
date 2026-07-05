@@ -44,7 +44,10 @@ if [ "$CMD" = "git status" ]; then
   NEW="git status --short --branch"
 
 elif [[ "$CMD" =~ ^git\ log($|\ ) ]] \
-  && ! [[ "$CMD" =~ (--oneline|--max-count|--pretty|--format|--stat|-n\ ?[0-9]|\ -[0-9]+|\ -p($|\ )) ]]; then
+  && ! [[ "$CMD" =~ (--oneline|--max-count|--pretty|--format|--stat|-n\ ?[0-9]|\ -[0-9]+|\ -p($|\ )) ]] \
+  && ! [[ "$CMD" =~ (--grep|--author|--since|--until|--all-match|\ -S|\ -G|\ -L) ]]; then
+  # (searches like --grep/--author are left alone: capping them at 20 could
+  # hide exactly the commits Claude is looking for)
   NEW="$CMD --oneline -20"
 
 elif [ "$CMD" = "git diff" ]; then
@@ -61,7 +64,9 @@ elif [[ "$CMD" =~ ^ls\ -(la|al|l|lah|alh)($|\ ([^\ ]+)$) ]]; then
   fi
 
 elif [[ "$CMD" =~ ^find($|\ ) ]] \
-  && ! [[ "$CMD" =~ -maxdepth|-delete|-exec|-prune|-depth ]]; then
+  && ! [[ "$CMD" =~ -maxdepth|-delete|-exec|-prune|-depth|!|\( ]]; then
+  # (! and \( start expression groups; inserting -maxdepth near them could
+  # change what gets negated/grouped, so those commands pass through)
   if [[ "$CMD" =~ ^(find(\ [^-][^\ ]*)*)(\ -.*)?$ ]]; then
     PREFIX="${BASH_REMATCH[1]}"
     REST="${BASH_REMATCH[3]}"
@@ -81,11 +86,12 @@ elif [[ "$CMD" =~ ^cat\ ([^-][^\ ]*)$ ]]; then
   fi
 
 elif [[ "$CMD" =~ ^npm\ (install|i|ci)($|\ ) ]] \
-  && ! [[ "$CMD" =~ --silent|--quiet|\ -s($|\ )|\ -q($|\ ) ]]; then
+  && ! [[ "$CMD" =~ --silent|--quiet|--verbose|--loglevel|--json|\ -s($|\ )|\ -q($|\ )|\ -d+($|\ ) ]]; then
+  # (explicit --verbose/--loglevel means the user WANTS the output; don't fight it)
   NEW="$CMD --silent"
 
 elif [[ "$CMD" =~ ^pip3?\ install\  ]] \
-  && ! [[ "$CMD" =~ --quiet|\ -q($|\ ) ]]; then
+  && ! [[ "$CMD" =~ --quiet|--verbose|\ -q($|\ )|\ -v+($|\ ) ]]; then
   NEW="$CMD -q"
 
 elif [[ "$CMD" =~ ^grep\  ]] && [[ "$CMD" =~ \ -[a-zA-Z]*r ]] \
@@ -105,7 +111,7 @@ if [ "$TO_HAS_JQ" = 1 ]; then
     {hookSpecificOutput: {hookEventName: "PreToolUse", updatedInput: (.tool_input + {command: $c})}}
     + (if $m == "" then {} else {systemMessage: $m} end)' 2>/dev/null)" || exit 0
 else
-  OUT="$(printf '%s' "$INPUT" | python3 -c '
+  OUT="$(printf '%s' "$INPUT" | "$TO_PY_BIN" -c '
 import sys, json
 try:
     d = json.load(sys.stdin)

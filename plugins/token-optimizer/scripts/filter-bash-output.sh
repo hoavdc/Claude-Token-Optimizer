@@ -3,7 +3,8 @@
 # Compresses oversized Bash stdout before it enters Claude's context, via
 # hookSpecificOutput.updatedToolOutput (must mirror the Bash tool's output
 # shape: {stdout, stderr, interrupted, isImage}). The command has already run;
-# only what Claude sees is changed.
+# only what Claude sees is changed. stderr is never touched: errors are
+# exactly the content Claude must see in full.
 #
 # SAFETY: any error or unexpected shape -> exit 0, original output untouched.
 
@@ -41,12 +42,15 @@ printf '%s\n' "$STDOUT" > "$TMP"
 
 MSG=""
 KIND="default"
-if grep -q 'Traceback (most recent call last)' "$TMP" 2>/dev/null \
+# Build/test logs are checked BEFORE stack traces: a pytest/jest run with 10
+# failures contains tracebacks, but collapsing it to head+tail would silently
+# drop most of the failures. Only pure stack traces get the aggressive cut.
+BUILD_MARKS="$(grep -cE '(^|[[:space:]])(PASS|FAIL|ERROR|✓|✗|ok [0-9]|not ok|passing|failing|Compiling|Building|Bundling)' "$TMP" 2>/dev/null)"
+if [ "${BUILD_MARKS:-0}" -gt 3 ] 2>/dev/null; then
+  KIND="buildlog"
+elif grep -q 'Traceback (most recent call last)' "$TMP" 2>/dev/null \
   || grep -qE '^[[:space:]]+at .+\(.+:[0-9]+' "$TMP" 2>/dev/null; then
   KIND="trace"
-elif grep -qEc '(^|[[:space:]])(PASS|FAIL|ERROR|✓|✗|ok [0-9]|not ok|passing|failing|Compiling|Building|Bundling)' "$TMP" 2>/dev/null \
-  && [ "$(grep -cE '(^|[[:space:]])(PASS|FAIL|ERROR|✓|✗|ok [0-9]|not ok|passing|failing|Compiling|Building|Bundling)' "$TMP" 2>/dev/null)" -gt 3 ]; then
-  KIND="buildlog"
 fi
 
 FIRST_CHAR="$(head -c 200 "$TMP" | tr -d '[:space:]' | head -c 1)"
@@ -70,9 +74,11 @@ case "$KIND" in
     ' "$TMP" > "$TMP.f" 2>/dev/null || cp "$TMP" "$TMP.f"
     KEPT=$(wc -l < "$TMP.f" | tr -d ' ')
     if [ "$KEPT" -gt "$MAX" ]; then
+      # Keep error/failure lines even when trimming the middle.
       H=$((MAX * 3 / 5)); T=$((MAX / 4))
       { head -"$H" "$TMP.f"
         echo "[... $((KEPT - H - T)) lines elided (build/test noise) — rerun with a specific filter if needed ...]"
+        awk -v skip="$H" 'NR > skip && /FAIL|ERROR|✗|not ok/' "$TMP.f" | head -40
         tail -"$T" "$TMP.f"; } > "$TMP.f2" && mv "$TMP.f2" "$TMP.f"
     fi
     ;;
@@ -102,7 +108,7 @@ if [ "$TO_HAS_JQ" = 1 ]; then
       + (if $m == "" then {} else {systemMessage: $m} end)' 2>/dev/null)" || exit 0
   fi
 else
-  OUT="$(printf '%s' "$INPUT" | python3 -c '
+  OUT="$(printf '%s' "$INPUT" | "$TO_PY_BIN" -c '
 import sys, json
 try:
     d = json.load(sys.stdin)

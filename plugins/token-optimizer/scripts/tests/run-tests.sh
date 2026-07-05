@@ -63,6 +63,27 @@ OUT=$(echo 'this is not json {' | bash "$SCRIPTS_DIR/rewrite-verbose-cmd.sh"); R
 check_exit0 $RC "malformed input"
 [ -z "$OUT" ] && ok "malformed JSON input -> silent pass-through" || bad "malformed input produced output: $OUT"
 
+# false-positive guards: rewrites must NOT fire on these
+mk() { jq -n --arg c "$1" '{cwd:"/tmp", tool_name:"Bash", tool_input:{command:$c}}'; }
+for CMD in \
+  'git log --grep "fix login"' \
+  'git log -S someSymbol' \
+  'find . ! -name "*.md" -type f' \
+  'npm install --verbose' \
+  'pip install -v requests'; do
+  OUT=$(mk "$CMD" | bash "$SCRIPTS_DIR/rewrite-verbose-cmd.sh"); RC=$?
+  check_exit0 $RC "no-rewrite: $CMD"
+  [ -z "$OUT" ] && ok "not rewritten: $CMD" || bad "should not rewrite '$CMD'; got: $OUT"
+done
+
+# ...but the plain forms still rewrite
+OUT=$(mk 'git log' | bash "$SCRIPTS_DIR/rewrite-verbose-cmd.sh")
+printf '%s' "$OUT" | jq -e '.hookSpecificOutput.updatedInput.command == "git log --oneline -20"' >/dev/null 2>&1 \
+  && ok "plain git log still rewritten" || bad "plain git log lost its rewrite: $OUT"
+OUT=$(mk 'find src -name "*.ts"' | bash "$SCRIPTS_DIR/rewrite-verbose-cmd.sh")
+printf '%s' "$OUT" | jq -e '.hookSpecificOutput.updatedInput.command == "find src -maxdepth 4 -name \"*.ts\""' >/dev/null 2>&1 \
+  && ok "plain find still gets -maxdepth 4" || bad "plain find lost its rewrite: $OUT"
+
 echo "== filter-bash-output.sh =="
 
 OUT=$(run filter-bash-output.sh "$FIX/post-small.json"); RC=$?
@@ -96,6 +117,27 @@ if printf '%s' "$OUT" | jq -r '.hookSpecificOutput.updatedToolOutput.stdout' 2>/
   ok "stack trace keeps the final error line"
 else
   bad "stack trace lost the error line"
+fi
+
+# Test-runner output WITH tracebacks must be treated as a build/test log,
+# not collapsed to head5+tail15 (that would drop most failures).
+PYTEST=$(jq -n '{cwd:"/tmp", tool_name:"Bash", tool_input:{command:"pytest"},
+  tool_response:{stdout:(
+    ([range(0;10)] | map(
+      "FAILED tests/test_mod\(.).py::test_case\(.)\n" +
+      "Traceback (most recent call last):\n" +
+      "  File \"tests/test_mod\(.).py\", line 42, in test_case\(.)\n" +
+      "AssertionError: expected \(.) got \(. + 1)\n" +
+      ([range(0;30)] | map("  noise line") | join("\n"))
+    ) | join("\n")) + "\n===== 10 failed, 90 passed ====="),
+    stderr:"", interrupted:false, isImage:false}}')
+OUT=$(printf '%s' "$PYTEST" | bash "$SCRIPTS_DIR/filter-bash-output.sh"); RC=$?
+check_exit0 $RC "pytest log"
+FAILS_KEPT=$(printf '%s' "$OUT" | jq -r '.hookSpecificOutput.updatedToolOutput.stdout' 2>/dev/null | grep -c '^FAILED')
+if [ "${FAILS_KEPT:-0}" -ge 4 ]; then
+  ok "test log with tracebacks keeps multiple FAILED lines ($FAILS_KEPT kept)"
+else
+  bad "test log collapsed like a plain stack trace (only ${FAILS_KEPT:-0} FAILED lines kept)"
 fi
 
 echo "== context-meter.sh =="
